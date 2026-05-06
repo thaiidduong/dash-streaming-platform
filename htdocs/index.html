@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <title>DASHFLIX Streaming Platform</title>
+
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:'Poppins',sans-serif;
+        }
+
+        body{
+            background:#050505;
+            color:white;
+            overflow-x:hidden;
+        }
+
+        .background{
+            position:fixed;
+            inset:0;
+
+            background:
+                linear-gradient(to bottom,
+                    rgba(0,0,0,0.2),
+                    rgba(0,0,0,0.95)),
+                url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=crop');
+
+            background-size:cover;
+            background-position:center;
+
+            filter:blur(5px);
+
+            z-index:-2;
+
+            animation:bgZoom 20s ease infinite alternate;
+        }
+
+        @keyframes bgZoom{
+            from{
+                transform:scale(1.05);
+            }
+
+            to{
+                transform:scale(1.15);
+            }
+        }
+
+        .overlay{
+            position:fixed;
+            inset:0;
+            background:rgba(0,0,0,0.4);
+            z-index:-1;
+        }
+
+        nav{
+            width:100%;
+            padding:24px 50px;
+
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+
+            position:sticky;
+            top:0;
+
+            backdrop-filter:blur(12px);
+
+            background:rgba(0,0,0,0.3);
+
+            border-bottom:1px solid rgba(255,255,255,0.08);
+
+            z-index:999;
+        }
+
+        .logo{
+            font-size:2.3rem;
+            font-weight:800;
+            color:#ff2d55;
+            letter-spacing:2px;
+        }
+
+        .nav-links{
+            display:flex;
+            gap:28px;
+        }
+
+        .nav-links span{
+            cursor:pointer;
+            transition:0.3s;
+            color:rgba(255,255,255,0.75);
+        }
+
+        .nav-links span:hover{
+            color:white;
+            transform:translateY(-2px);
+        }
+
+        .clock{
+            color:#ff5d7d;
+            font-weight:600;
+        }
+
+        .hero{
+            width:100%;
+            min-height:100vh;
+
+            display:flex;
+            justify-content:center;
+            align-items:center;
+
+            padding:50px;
+        }
+
+        .container{
+            width:100%;
+            max-width:1500px;
+
+            display:grid;
+            grid-template-columns:2fr 1fr;
+
+            gap:28px;
+        }
+
+        .player-card{
+
+            background:rgba(255,255,255,0.05);
+
+            border:1px solid rgba(255,255,255,0.08);
+
+            border-radius:28px;
+
+            overflow:hidden;
+
+            backdrop-filter:blur(18px);
+
+            box-shadow:
+                0 20px 60px rgba(0,0,0,0.6);
+
+            animation:fadeUp 1s ease;
+        }
+
+        @keyframes fadeUp{
+            from{
+                opacity:0;
+                transform:translateY(40px);
+            }
+
+            to{
+                opacity:1;
+                transform:translateY(0);
+            }
+        }
+
+        .video-wrapper{
+            position:relative;
+            overflow:hidden;
+            border-radius:22px;
+            margin:24px;
+        }
+
+        video{
+            width:100%;
+            display:block;
+            border-radius:20px;
+        }
+
+        .glow{
+            position:absolute;
+
+            width:300px;
+            height:300px;
+
+            background:#ff2d55;
+
+            filter:blur(180px);
+
+            opacity:0.25;
+
+            top:-100px;
+            right:-50px;
+        }
+
+        .live-indicator{
+            position:absolute;
+            top:20px;
+            left:20px;
+
+            background:#ff2d55;
+
+            padding:10px 18px;
+
+            border-radius:999px;
+
+            font-size:0.9rem;
+            font-weight:600;
+
+            animation:pulse 1.5s infinite;
+
+            z-index:10;
+        }
+
+        @keyframes pulse{
+            0%{opacity:1;}
+            50%{opacity:0.5;}
+            100%{opacity:1;}
+        }
+
+        .loader{
+            position:absolute;
+
+            top:50%;
+            left:50%;
+
+            width:70px;
+            height:70px;
+
+            border:6px solid rgba(255,255,255,0.2);
+            border-top:6px solid #ff2d55;
+
+            border-radius:50%;
+
+            animation:spin 1s linear infinite;
+
+            transform:translate(-50%,-50%);
+
+            z-index:20;
+        }
+
+        @keyframes spin{
+            100%{
+                transform:translate(-50%,-50%) rotate(360deg);
+            }
+        }
+
+        .content{
+            padding:0 32px 32px;
+        }
+
+        .title{
+            font-size:2.2rem;
+            font-weight:800;
+            margin-bottom:12px;
+        }
+
+        .description{
+            color:rgba(255,255,255,0.7);
+            line-height:1.9;
+            margin-bottom:28px;
+        }
+
+        .buttons{
+            display:flex;
+            gap:15px;
+            flex-wrap:wrap;
+            margin-bottom:28px;
+        }
+
+        .btn{
+            border:none;
+            cursor:pointer;
+
+            padding:14px 24px;
+
+            border-radius:16px;
+
+            font-size:1rem;
+            font-weight:600;
+
+            transition:0.3s;
+        }
+
+        .btn:hover{
+            transform:translateY(-4px) scale(1.03);
+        }
+
+        .primary{
+            background:#ff2d55;
+            color:white;
+        }
+
+        .secondary{
+            background:rgba(255,255,255,0.08);
+            color:white;
+            border:1px solid rgba(255,255,255,0.08);
+        }
+
+        .quality-selector{
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+        }
+
+        .quality-btn{
+            padding:10px 18px;
+            border-radius:999px;
+            border:none;
+            cursor:pointer;
+
+            background:rgba(255,255,255,0.08);
+            color:white;
+
+            transition:0.3s;
+        }
+
+        .quality-btn:hover{
+            background:#ff2d55;
+        }
+
+        .stats-panel{
+            display:flex;
+            flex-direction:column;
+            gap:22px;
+        }
+
+        .card{
+            background:rgba(255,255,255,0.05);
+
+            border:1px solid rgba(255,255,255,0.08);
+
+            border-radius:24px;
+
+            padding:26px;
+
+            backdrop-filter:blur(16px);
+
+            animation:fadeUp 1.2s ease;
+        }
+
+        .card h2{
+            margin-bottom:20px;
+            font-size:1.3rem;
+        }
+
+        .metric{
+            margin-bottom:18px;
+        }
+
+        .metric-title{
+            color:rgba(255,255,255,0.7);
+            margin-bottom:6px;
+        }
+
+        .metric-value{
+            font-size:1.5rem;
+            font-weight:700;
+            color:#ff2d55;
+        }
+
+        .badge{
+            display:inline-block;
+
+            padding:10px 18px;
+
+            border-radius:999px;
+
+            background:rgba(255,45,85,0.15);
+
+            border:1px solid rgba(255,45,85,0.4);
+
+            color:#ff5d7d;
+            font-weight:600;
+        }
+
+        .features{
+            display:grid;
+            grid-template-columns:repeat(2,1fr);
+            gap:16px;
+        }
+
+        .feature{
+            background:rgba(255,255,255,0.05);
+
+            padding:18px;
+
+            border-radius:18px;
+
+            transition:0.3s;
+        }
+
+        .feature:hover{
+            transform:translateY(-5px);
+            background:rgba(255,255,255,0.08);
+        }
+
+        .feature-title{
+            font-weight:700;
+            margin-bottom:8px;
+        }
+
+        .feature-desc{
+            color:rgba(255,255,255,0.7);
+            line-height:1.6;
+            font-size:0.92rem;
+        }
+
+        .logs{
+            max-height:220px;
+            overflow:auto;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+        }
+
+        .log{
+            background:rgba(255,255,255,0.05);
+            padding:12px;
+            border-radius:12px;
+            color:#bdbdbd;
+            font-size:0.9rem;
+        }
+
+        .footer{
+            text-align:center;
+            padding:30px;
+            color:rgba(255,255,255,0.5);
+        }
+
+        @media(max-width:1100px){
+
+            .container{
+                grid-template-columns:1fr;
+            }
+
+        }
+
+        @media(max-width:700px){
+
+            nav{
+                padding:20px;
+            }
+
+            .hero{
+                padding:20px;
+            }
+
+            .features{
+                grid-template-columns:1fr;
+            }
+
+            .title{
+                font-size:1.6rem;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="background"></div>
+<div class="overlay"></div>
+
+<nav>
+
+    <div class="logo">DASHFLIX</div>
+
+    <div class="nav-links">
+        <span>Home</span>
+        <span>Trending</span>
+        <span>Streaming</span>
+        <span>Analytics</span>
+    </div>
+
+    <div class="clock" id="clock"></div>
+
+</nav>
+
+<section class="hero">
+
+    <div class="container">
+
+        <div class="player-card">
+
+            <div class="video-wrapper">
+
+                <div class="glow"></div>
+
+                <div class="live-indicator">
+                    ● LIVE ADAPTIVE STREAMING
+                </div>
+
+                <div class="loader" id="loader"></div>
+
+                <video
+    id="videoPlayer"
+    controls
+    muted
+    playsinline>
+</video>
+
+            </div>
+
+            <div class="content">
+
+                <div class="title">
+                    Adaptive DASH Streaming Platform
+                </div>
+
+                <div class="description">
+
+                    Modern adaptive bitrate streaming platform using
+                    MPEG-DASH, FFmpeg segmentation,
+                    Node.js streaming server,
+                    and dash.js playback technology.
+
+                </div>
+
+                <div class="buttons">
+
+                    <button class="btn primary" onclick="playVideo()">
+                        ▶ Play
+                    </button>
+
+                    <button class="btn secondary" onclick="toggleMute()">
+                        🔊 Toggle Sound
+                    </button>
+
+                    <button class="btn secondary" onclick="toggleFullscreen()">
+                        ⛶ Fullscreen
+                    </button>
+
+                </div>
+
+                <div class="quality-selector">
+
+                    <button class="quality-btn" onclick="setAuto()">
+                        Auto
+                    </button>
+
+                    <button class="quality-btn" onclick="setQuality(0)">
+                        360p
+                    </button>
+
+                    <button class="quality-btn" onclick="setQuality(1)">
+                        720p
+                    </button>
+
+                    <button class="quality-btn" onclick="setQuality(1)">
+                        HD
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="stats-panel">
+
+            <div class="card">
+
+                <h2>Streaming Statistics</h2>
+
+                <div class="metric">
+                    <div class="metric-title">Current Bitrate</div>
+                    <div class="metric-value" id="bitrate">Loading...</div>
+                </div>
+
+                <div class="metric">
+                    <div class="metric-title">Playback Resolution</div>
+                    <div class="metric-value" id="resolution">Loading...</div>
+                </div>
+
+                <div class="metric">
+                    <div class="metric-title">Buffer Level</div>
+                    <div class="metric-value" id="buffer">0s</div>
+                </div>
+
+                <div class="metric">
+                    <div class="metric-title">Network Speed</div>
+                    <div class="metric-value" id="network">Detecting...</div>
+                </div>
+
+                <div class="metric">
+                    <div class="metric-title">Streaming Mode</div>
+                    <div class="badge">
+                        Adaptive Streaming Enabled
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <h2>Project Features</h2>
+
+                <div class="features">
+
+                    <div class="feature">
+                        <div class="feature-title">
+                            MPEG-DASH
+                        </div>
+
+                        <div class="feature-desc">
+                            Dynamic adaptive streaming protocol.
+                        </div>
+                    </div>
+
+                    <div class="feature">
+                        <div class="feature-title">
+                            Adaptive Bitrate
+                        </div>
+
+                        <div class="feature-desc">
+                            Automatically switches quality based on bandwidth.
+                        </div>
+                    </div>
+
+                    <div class="feature">
+                        <div class="feature-title">
+                            FFmpeg Encoding
+                        </div>
+
+                        <div class="feature-desc">
+                            Video segmented into DASH chunks.
+                        </div>
+                    </div>
+
+                    <div class="feature">
+                        <div class="feature-title">
+                            Real-time Streaming
+                        </div>
+
+                        <div class="feature-desc">
+                            Browser requests segments dynamically.
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <h2>Streaming Logs</h2>
+
+                <div class="logs" id="logs"></div>
+
+            </div>
+
+            <div class="card">
+
+                <h2>Developer</h2>
+
+                <p style="color:rgba(255,255,255,0.7); line-height:1.8;">
+
+                    Nguyễn Anh Thái Dương<br>
+                    DASH Streaming System Project<br>
+                    HUST Multimedia Engineering
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<div class="footer">
+    DASHFLIX • MPEG-DASH • Node.js • FFmpeg • dash.js
+</div>
+
+<script>
+
+    const player = dashjs.MediaPlayer().create();
+
+    player.initialize(
+        document.querySelector("#videoPlayer"),
+        "manifest.mpd",
+        true
+    );
+
+    const loader = document.getElementById("loader");
+
+    player.on(
+        dashjs.MediaPlayer.events.PLAYBACK_PLAYING,
+        () => {
+            loader.style.display = "none";
+        }
+    );
+
+    player.on(
+        dashjs.MediaPlayer.events.BUFFER_EMPTY,
+        () => {
+            loader.style.display = "block";
+        }
+    );
+
+    function playVideo(){
+        document.getElementById("videoPlayer").play();
+    }
+
+    function toggleMute(){
+
+        const video =
+            document.getElementById("videoPlayer");
+
+        video.muted = !video.muted;
+    }
+
+    function toggleFullscreen(){
+
+    const video =
+        document.getElementById("videoPlayer");
+
+    if(video.requestFullscreen){
+
+        video.requestFullscreen();
+
+    }else if(video.webkitRequestFullscreen){
+
+        video.webkitRequestFullscreen();
+
+    }else if(video.msRequestFullscreen){
+
+        video.msRequestFullscreen();
+
+    }else if(video.mozRequestFullScreen){
+
+        video.mozRequestFullScreen();
+    }
+}
+
+    function updateStats() {
+
+    const quality =
+        player.getQualityFor("video");
+
+    const bitrateList =
+        player.getBitrateInfoListFor("video");
+
+    if (
+        quality !== -1 &&
+        bitrateList &&
+        bitrateList[quality]
+    ) {
+
+        const current =
+            bitrateList[quality];
+
+        document.getElementById("bitrate").innerText =
+            Math.round(current.bitrate / 1000)
+            + " kbps";
+
+        document.getElementById("resolution").innerText =
+            current.width + " x " + current.height;
+        }
+
+    const buffer =
+        player.getBufferLength();
+
+    document.getElementById("buffer").innerText =
+        buffer.toFixed(2) + "s";
+    }
+
+    player.on(
+    dashjs.MediaPlayer.events.STREAM_INITIALIZED,
+    function(){
+
+        addLog(
+            "Streaming initialized successfully"
+        );
+
+        updateStats();
+
+        setInterval(updateStats,1000);
+    }
+);
+
+    function setQuality(index){
+
+    const bitrateList =
+        player.getBitrateInfoListFor("video");
+
+    if(
+        !bitrateList ||
+        !bitrateList[index]
+    ){
+
+        addLog(
+            "Quality level unavailable"
+        );
+
+        return;
+    }
+
+    player.updateSettings({
+        streaming:{
+            abr:{
+                autoSwitchBitrate:{
+                    video:false
+                }
+            }
+        }
+    });
+
+    player.setQualityFor(
+        "video",
+        index
+    );
+
+    addLog(
+        "Manual quality switch to level "
+        + index
+    );
+}
+
+    function setAuto(){
+
+        player.updateSettings({
+            streaming:{
+                abr:{
+                    autoSwitchBitrate:{
+                        video:true
+                    }
+                }
+            }
+        });
+
+        addLog("Auto adaptive bitrate enabled");
+    }
+
+    function addLog(message){
+
+        const logs =
+            document.getElementById("logs");
+
+        const log =
+            document.createElement("div");
+
+        log.className = "log";
+
+        const time =
+            new Date().toLocaleTimeString();
+
+        log.innerText =
+            "[" + time + "] " + message;
+
+        logs.prepend(log);
+    }
+
+    player.on(
+        dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED,
+        function(e){
+
+            addLog(
+                "Quality changed to level "
+                + e.newQuality
+            );
+        }
+    );
+
+player.on(
+    dashjs.MediaPlayer.events.ERROR,
+    function(e){
+
+        console.error(e);
+
+        addLog(
+            "Streaming error detected"
+        );
+
+        document.getElementById("network").innerText =
+            "ERROR";
+    }
+);
+
+player.on(
+    dashjs.MediaPlayer.events.BUFFER_EMPTY,
+    function(){
+
+        addLog(
+            "Buffering..."
+        );
+    }
+);
+
+player.on(
+    dashjs.MediaPlayer.events.QUALITY_CHANGE_REQUESTED,
+    function(e){
+
+        addLog(
+            "Adaptive bitrate switching..."
+        );
+    }
+);
+
+    function updateClock(){
+
+        const now = new Date();
+
+        document.getElementById("clock").innerText =
+            now.toLocaleTimeString();
+    }
+
+    setInterval(updateClock,1000);
+
+    if(navigator.connection){
+
+        function updateNetwork(){
+
+            const speed =
+                navigator.connection.effectiveType;
+
+            document.getElementById("network").innerText =
+                speed.toUpperCase();
+        }
+
+        updateNetwork();
+
+        navigator.connection.addEventListener(
+            "change",
+            updateNetwork
+        );
+    }
+
+</script>
+
+</body>
+</html>
