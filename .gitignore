@@ -1,0 +1,10 @@
+node_modules/
+
+*.mp4
+*.webm
+*.m4s
+
+video_input/**/chunk-*
+video_input/**/init-*
+video_input/**/manifest.mpd
+video_input/**

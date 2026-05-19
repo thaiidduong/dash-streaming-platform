@@ -541,7 +541,38 @@
                     <button class="quality-btn" onclick="setAuto()">
                         Auto
                     </button>
+                    
+                    <div style="margin-top:20px;">
 
+    <select
+        id="videoSelect"
+        onchange="changeVideo(this.value)"
+        style="
+            background:#1f1f1f;
+            color:white;
+            border:none;
+            border-radius:14px;
+            padding:12px 18px;
+            font-size:16px;
+            cursor:pointer;
+        "
+    >
+
+        <option value="video1">
+            🐶 Animal
+        </option>
+
+        <option value="video2">
+            💍 Wedding
+        </option>
+
+        <option value="video3">
+            🎬 Scene
+        </option>
+
+    </select>
+
+</div>
                     <button class="quality-btn" onclick="setQuality(0)">
                         360p
                     </button>
@@ -682,9 +713,9 @@
     const player = dashjs.MediaPlayer().create();
 
     player.initialize(
-        document.querySelector("#videoPlayer"),
-        "manifest.mpd",
-        true
+    document.querySelector("#videoPlayer"),
+    "/video/video1/manifest.mpd",
+    false
     );
 
     const loader = document.getElementById("loader");
@@ -704,7 +735,18 @@
     );
 
     function playVideo(){
-        document.getElementById("videoPlayer").play();
+
+    const video =
+        document.getElementById("videoPlayer");
+
+    // nếu video phát xong thì tua lại đầu
+    if(video.ended){
+        video.currentTime = 0;
+    }
+
+    video.play();
+
+    addLog("Playback started");
     }
 
     function toggleMute(){
@@ -901,7 +943,19 @@ player.on(
         );
     }
 );
+function changeVideo(folder){
 
+    loader.style.display =
+        "block";
+
+    player.attachSource(
+        `/video/${folder}/manifest.mpd`
+    );
+
+    addLog(
+        "Changed to " + folder
+    );
+}
     function updateClock(){
 
         const now = new Date();
