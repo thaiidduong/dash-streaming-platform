@@ -746,412 +746,234 @@
     </div>
 
     <script>
-
         const player = dashjs.MediaPlayer().create();
+        const loader = document.getElementById("loader");
+        const loadingText = document.getElementById("loadingText");
 
+        // Khởi tạo player
         player.initialize(
             document.querySelector("#videoPlayer"),
             "/video/video1/manifest.mpd",
             true
         );
 
-        setTimeout(() => {
+        // Xử lý ẩn loader khi bắt đầu phát video
+        player.on(dashjs.MediaPlayer.events.PLAYBACK_PLAYING, () => {
+            setTimeout(() => {
+                loader.style.display = "none";
+                loadingText.style.display = "none";
+            }, 300);
+        });
 
-            console.log(
-                "Bitrate list:",
-                player.getTracksFor(
-                    "video"
-                );
+        player.on(dashjs.MediaPlayer.events.BUFFER_EMPTY, () => {
+            loader.style.display = "block";
+            addLog("Buffering stream...");
+        });
 
-        }, 4000);
-
-        const loader = document.getElementById("loader");
-
-        player.on(
-            dashjs.MediaPlayer.events.PLAYBACK_PLAYING,
-            () => {
-                setTimeout(() => {
-                    loader.style.display =
-                        "none";
-
-                    document.getElementById(
-                        "loadingText"
-                    ).style.display =
-                        "none";
-                }, 300);
-            }
-        );
-
-        player.on(
-            dashjs.MediaPlayer.events.BUFFER_EMPTY,
-            () => {
-                loader.style.display = "block";
-            }
-        );
-
+        // Các hàm điều khiển Player basic
         function playVideo() {
-
-            const video =
-                document.getElementById(
-                    "videoPlayer"
-                );
-
+            const video = document.getElementById("videoPlayer");
             if (video.ended) {
                 video.currentTime = 0;
             }
-
             video.muted = false;
-
             video.play();
-
-            addLog(
-                "▶ Playback started"
-            );
+            addLog("▶ Playback started");
         }
 
         function toggleMute() {
-
-            const video =
-                document.getElementById("videoPlayer");
-
+            const video = document.getElementById("videoPlayer");
             video.muted = !video.muted;
         }
 
         function toggleFullscreen() {
-
-            const video =
-                document.getElementById("videoPlayer");
-
-            if (video.requestFullscreen) {
-
-                video.requestFullscreen();
-
-            } else if (video.webkitRequestFullscreen) {
-
-                video.webkitRequestFullscreen();
-
-            } else if (video.msRequestFullscreen) {
-
-                video.msRequestFullscreen();
-
-            } else if (video.mozRequestFullScreen) {
-
-                video.mozRequestFullScreen();
-            }
+            const video = document.getElementById("videoPlayer");
+            if (video.requestFullscreen) video.requestFullscreen();
+            else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+            else if (video.msRequestFullscreen) video.msRequestFullscreen();
+            else if (video.mozRequestFullScreen) video.mozRequestFullScreen();
         }
 
+        // --- PHẦN SỬA LỖI VÀ CẬP NHẬT STATS ---
+        // --- PHẦN CẬP NHẬT STATS ---
         let statsInterval;
 
         function updateStats() {
-
             try {
 
-                const settings =
-                    player.getSettings();
+                // bitrate + resolution
+                const currentTrack =
+                    player.getCurrentTrackFor("video");
 
-                const quality =
-                    player.getQualityFor(
-                        "video"
-                    );
+                if (currentTrack) {
 
-                const bitrateInfo =
-                    player.getTracksFor(
-                        "video"
-                    );
+                    // bitrate
+                    if (currentTrack.bitrateList?.length) {
 
-                if (
-                    bitrateInfo &&
-                    bitrateInfo.length > 0
-                ) {
-
-                    const safeIndex =
-                        quality >= 0
-                            ? quality
-                            : 0;
-
-                    const current =
-                        bitrateInfo[safeIndex];
-
-                    if (current) {
+                        const currentBitrate =
+                            currentTrack.bitrateList[0];
 
                         document.getElementById(
                             "bitrate"
                         ).innerText =
                             Math.round(
-                                current.bandwidth / 1000
+                                currentBitrate.bandwidth / 1000
                             ) + " kbps";
 
+                        // resolution
                         document.getElementById(
                             "resolution"
                         ).innerText =
-                            current.width
-                            + " × "
-                            + current.height;
+                            currentBitrate.width +
+                            " × " +
+                            currentBitrate.height;
                     }
                 }
+
+                // buffer
+                const buffer =
+                    player.getBufferLength("video");
 
                 document.getElementById(
                     "buffer"
                 ).innerText =
-                    player
-                        .getBufferLength()
-                        .toFixed(2)
-                    + " s";
+                    buffer.toFixed(2) + " s";
 
             } catch (error) {
-
                 console.log(
-                    "Stats update error",
+                    "Stats update error:",
                     error
                 );
             }
         }
 
+        // Chạy stats khi video start
         player.on(
             dashjs.MediaPlayer.events.PLAYBACK_STARTED,
             function () {
 
-                addLog(
-                    "Streaming initialized"
-                );
+                addLog("Streaming initialized");
 
-                clearInterval(
-                    statsInterval
-                );
+                clearInterval(statsInterval);
 
                 updateStats();
 
                 statsInterval =
-                    setInterval(
-                        updateStats,
-                        1000
-                    );
+                    setInterval(updateStats, 1000);
             }
         );
 
+        // Chọn chất lượng thủ công (Manual Mode)
         function setQuality(index) {
+            const bitrateList = player.getTracksFor("video");
 
-            const tracks =
-                player.getTracksFor(
-                    "video"
-                );
-
-            if (
-                !tracks ||
-                tracks.length === 0
-            ) {
-                addLog(
-                    "No quality levels available"
-                );
+            if (!bitrateList || bitrateList.length === 0) {
+                addLog("No quality levels available");
                 return;
             }
 
-            const safeIndex =
-                Math.min(
-                    index,
-                    tracks.length - 1
-                );
+            // Đảm bảo index chọn không vượt quá số lượng profile có sẵn
+            const safeIndex = Math.min(index, bitrateList.length - 1);
 
+            // Tắt tính năng Auto chuyển Bitrate
             player.updateSettings({
                 streaming: {
                     abr: {
-                        autoSwitchBitrate: {
-                            video: false
-                        }
+                        autoSwitchBitrate: { video: false }
                     }
                 }
             });
 
-            player.setQualityFor(
+            player.setRepresentationForTypeByIndex(
                 "video",
                 safeIndex
             );
 
-            const selected =
-                tracks[safeIndex];
-
-            addLog(
-                "Quality changed to "
-                + (
-                    selected.height ||
-                    "Unknown"
-                )
-                + "p"
-            );
-
-            document.getElementById(
-                "streamMode"
-            ).innerText =
-                "MANUAL MODE";
+            const selected = bitrateList[safeIndex];
+            addLog(`Quality changed manually to ${selected.height}p`);
+            document.getElementById("streamMode").innerText = "MANUAL MODE";
         }
 
+        // Bật lại chế độ Auto ABR
         function setAuto() {
-
             player.updateSettings({
                 streaming: {
                     abr: {
-                        autoSwitchBitrate: {
-                            video: true
-                        }
+                        autoSwitchBitrate: { video: true }
                     }
                 }
             });
-
             addLog("Auto adaptive bitrate enabled");
-            document.getElementById(
-                "streamMode"
-            ).innerText =
-                "AUTO MODE";
+            document.getElementById("streamMode").innerText = "AUTO MODE";
         }
 
+        // Ghi Logs hệ thống lên giao diện
         function addLog(message) {
-
-            const logs =
-                document.getElementById("logs");
-
-            const log =
-                document.createElement("div");
-
+            const logs = document.getElementById("logs");
+            const log = document.createElement("div");
             log.className = "log";
-
-            const time =
-                new Date().toLocaleTimeString();
-
-            log.innerText =
-                "[" + time + "] " + message;
-
+            const time = new Date().toLocaleTimeString();
+            log.innerText = "[" + time + "] " + message;
             logs.prepend(log);
         }
 
-        player.on(
-            dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED,
-            function (e) {
-
-                const tracks =
-                    player.getTracksFor(
-                        "video"
-                    );
-
+        // Lắng nghe sự kiện đổi chất lượng thành công từ ABR hệ thống
+        player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function (e) {
+            if (e.mediaType === "video") {
+                const bitrateList = player.getTracksFor("video");
                 const current =
-                    tracks[e.newQuality];
-
-                addLog(
-                    "Adaptive bitrate switched to "
-                    + current.height
-                    + "p"
-                );
-
-                addLog(
-                    "Adaptive bitrate switched to "
-                    + qualityNames[e.newQuality]
-                );
-            }
-        );
-
-        player.on(
-            dashjs.MediaPlayer.events.ERROR,
-            function (e) {
-
-                console.error(e);
-
-                addLog(
-                    "Streaming error detected"
-                );
-
-                document.getElementById("network").innerText =
-                    "ERROR";
-            }
-        );
-
-        player.on(
-            dashjs.MediaPlayer.events.BUFFER_EMPTY,
-            function () {
-
-                addLog(
-                    "Buffering stream..."
-                );
-            }
-        );
-
-        player.on(
-            dashjs.MediaPlayer.events.QUALITY_CHANGE_REQUESTED,
-            function (e) {
-
-                addLog(
-                    "Switching bitrate..."
-                );
-            }
-        );
-        function changeVideo(folder) {
-
-            loader.style.display =
-                "block";
-
-            document.getElementById(
-                "loadingText"
-            ).style.display =
-                "block";
-
-            player.attachSource(
-                `/video/${folder}/manifest.mpd`
-            );
-
-            addLog(
-                "Changed to " + folder
-            );
-            player.updateSettings({
-                streaming: {
-                    abr: {
-                        autoSwitchBitrate: {
-                            video: true
-                        }
-                    }
+                    player.getTracksFor("video")[e.newQuality];
+                if (current) {
+                    addLog("Adaptive bitrate switched to " + current.height + "p");
                 }
-            });
+            }
+        });
 
-            document.getElementById(
-                "streamMode"
-            ).innerText =
-                "AUTO MODE";
+        player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_REQUESTED, function (e) {
+            if (e.mediaType === "video") {
+                addLog("Switching bitrate...");
+            }
+        });
+
+        player.on(dashjs.MediaPlayer.events.ERROR, function (e) {
+            console.error(e);
+            addLog("Streaming error detected");
+            document.getElementById("network").innerText = "ERROR";
+        });
+
+        // Đổi Folder Video bài giảng / Demo
+        function changeVideo(folder) {
+            loader.style.display = "block";
+            loadingText.style.display = "block";
+
+            player.attachSource(`/video/${folder}/manifest.mpd`);
+            addLog("Changed source to " + folder);
+
+            // Reset lại về chế độ AUTO khi chuyển video mới
+            setAuto();
         }
+
+        // Đồng hồ góc màn hình
         function updateClock() {
-
             const now = new Date();
-
-            document.getElementById("clock").innerText =
-                now.toLocaleTimeString();
+            document.getElementById("clock").innerText = now.toLocaleTimeString();
         }
-
         setInterval(updateClock, 1000);
 
+        // Phát hiện tốc độ mạng trình duyệt
         if (navigator.connection) {
-
             function updateNetwork() {
-
-                const speed =
-                    navigator.connection.effectiveType;
-
-                document.getElementById("network").innerText =
-                    speed.toUpperCase();
+                const speed = navigator.connection.effectiveType;
+                document.getElementById("network").innerText = speed.toUpperCase();
             }
-
             updateNetwork();
-
-            navigator.connection.addEventListener(
-                "change",
-                updateNetwork
-            );
+            navigator.connection.addEventListener("change", updateNetwork);
         }
-        function scrollToSection(id) {
 
-            document
-                .getElementById(id)
-                .scrollIntoView({
-                    behavior: "smooth"
-                });
+        // Cuộn mượt đến các section
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({
+                behavior: "smooth"
+            });
         }
     </script>
-
-</body>
-
-</html>
