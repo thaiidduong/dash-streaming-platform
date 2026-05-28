@@ -343,6 +343,9 @@
 
         .quality-btn:hover {
             background: #ff2d55;
+            color: white;
+            box-shadow: 0 0 20px rgba(255, 45, 85, 0.35);
+            transform: scale(1.05);
         }
 
         .stats-panel {
@@ -644,10 +647,6 @@
                                     Animal
                                 </option>
 
-                                <option value="video2">
-                                    Wedding
-                                </option>
-
                                 <option value="video3">
                                     Scene
                                 </option>
@@ -898,7 +897,7 @@
         const loader = document.getElementById("loader");
         const loadingText = document.getElementById("loadingText");
 
-        let startupTime = performance.now();
+        let startupTime = 0;
         let rebufferCount = 0;
         let qoeScore = 100;
         let statsInterval;
@@ -934,7 +933,33 @@
             loader.style.display = "none";
             loadingText.style.display = "none";
         });
+        function updateActiveQualityButton(index) {
 
+            const buttons =
+                document.querySelectorAll(
+                    ".quality-btn"
+                );
+
+            // reset toàn bộ
+            buttons.forEach(btn =>
+                btn.classList.remove("active")
+            );
+
+            // mapping:
+            // 0 = Auto
+            // 1 = 360p
+            // 2 = 720p
+            // 3 = 1080p
+
+            const targetButton =
+                buttons[index];
+
+            if (targetButton) {
+                targetButton.classList.add(
+                    "active"
+                );
+            }
+        }
         // Các hàm điều khiển Player basic
         function playVideo() {
             startupTime = performance.now();
@@ -963,95 +988,57 @@
         // --- PHẦN CẬP NHẬT STATS & BITRATE (ĐÃ SỬA) ---
         function updateStats() {
 
-    try {
-
-        const buffer =
-            player.getBufferLength("video");
-
-        document.getElementById(
-            "buffer"
-        ).innerText =
-            buffer.toFixed(2) + " s";
-
-        const currentTrack =
-            player.getCurrentTrackFor(
-                "video"
-            );
-console.log(
-    currentTrack.bitrateList
-);
-        if (
-            currentTrack &&
-            currentTrack.bitrateList &&
-            currentTrack.bitrateList.length
-        ) {
-
-            // Lấy quality THẬT từ Dash.js
-            let qualityIndex = 0;
-
             try {
 
-                qualityIndex =
-                    player.getQualityFor(
+                const buffer =
+                    player.getBufferLength("video");
+
+                document.getElementById(
+                    "buffer"
+                ).innerText =
+                    buffer.toFixed(2) + " s";
+
+                const currentRep =
+                    player.getCurrentRepresentationForType(
                         "video"
                     );
 
-                if (
-                    qualityIndex === undefined ||
-                    qualityIndex === null ||
-                    qualityIndex < 0
-                ) {
-                    qualityIndex = 0;
+                if (currentRep) {
+
+                    const bitrateKbps =
+                        Math.round(
+                            currentRep.bandwidth / 1000
+                        );
+
+                    document.getElementById(
+                        "bitrate"
+                    ).innerText =
+                        bitrateKbps + " kbps";
+
+                    document.getElementById(
+                        "resolution"
+                    ).innerText =
+                        currentRep.width +
+                        " × " +
+                        currentRep.height;
+
+                    updateCharts(
+                        bitrateKbps,
+                        buffer
+                    );
                 }
 
-            } catch (e) {
-                qualityIndex = 0;
-            }
+                // QoE update
+                updateQoE();
 
-            // bitrate thực tế
-            const currentBitrate =
-                currentTrack.bitrateList[
-                    qualityIndex
-                ] ||
-                currentTrack.bitrateList[0];
+            } catch (error) {
 
-            const bitrateKbps =
-                Math.round(
-                    currentBitrate.bandwidth / 1000
+                console.log(
+                    "Stats update error:",
+                    error
                 );
-
-            // update UI
-            document.getElementById(
-                "bitrate"
-            ).innerText =
-                bitrateKbps +
-                " kbps";
-
-            document.getElementById(
-                "resolution"
-            ).innerText =
-                currentBitrate.width +
-                " × " +
-                currentBitrate.height;
-
-            // update charts
-            updateCharts(
-                bitrateKbps,
-                buffer
-            );
+            }
         }
-
-        // QoE update
-        updateQoE();
-
-    } catch (error) {
-
-        console.log(
-            "Stats update error:",
-            error
-        );
-    }
-}
         // Tính toán và hiển thị điểm chất lượng trải nghiệm (QoE)
         function updateQoE() {
             // Khấu trừ điểm dựa trên số lần giật hình (rebuffer) và thời gian cạn buffer
@@ -1089,36 +1076,32 @@ console.log(
 
         // Chọn chất lượng thủ công (Manual Mode) - ĐÃ SỬA
         function setQuality(index) {
-            const currentTrack =
-                player.getCurrentTrackFor("video");
 
-            const bitrateList =
-                currentTrack?.bitrateList || [];
-
-            if (!bitrateList || bitrateList.length === 0) {
-                addLog("No quality levels available");
-                return;
-            }
-
-            const safeIndex = Math.min(index, bitrateList.length - 1);
-
-            // Tắt tính năng Auto chuyển Bitrate (ABR)
             player.updateSettings({
                 streaming: {
                     abr: {
-                        autoSwitchBitrate: { video: false }
+                        autoSwitchBitrate: {
+                            video: false
+                        }
                     }
                 }
             });
 
-            player.setQualityFor(
+            player.setRepresentationForTypeByIndex(
                 "video",
-                safeIndex
+                index
+            );
+            updateActiveQualityButton(
+                index + 1
+            );
+            addLog(
+                `Manual quality → ${index}`
             );
 
-            const selected = bitrateList[safeIndex];
-            addLog(`Quality changed manually to ${selected.height}p`);
-            document.getElementById("streamMode").innerText = "MANUAL MODE";
+            document.getElementById(
+                "streamMode"
+            ).innerText =
+                "MANUAL MODE";
         }
 
         // Bật lại chế độ Auto ABR
@@ -1130,6 +1113,7 @@ console.log(
                     }
                 }
             });
+            updateActiveQualityButton(0);
             addLog("Auto adaptive bitrate enabled");
             document.getElementById("streamMode").innerText = "AUTO MODE";
         }
@@ -1199,21 +1183,70 @@ console.log(
 
         // Giả lập mạng (Dành cho chức năng selectbox Network Simulation của bạn)
         function simulateNetwork(type) {
-            let maxBitrate = Infinity;
-            if (type === "3g") maxBitrate = 400;       // kbps
-            else if (type === "4g") maxBitrate = 2500;   // kbps
-            else if (type === "poor") maxBitrate = 150;  // kbps
 
+            let qualityIndex = 2;
+
+            switch (type) {
+
+                case "wifi":
+                case "5g":
+                    qualityIndex = 2;
+                    break;
+
+                case "4g":
+                    qualityIndex = 1;
+                    break;
+
+                case "3g":
+                case "poor":
+                    qualityIndex = 0;
+                    break;
+
+                case "auto":
+
+                    player.updateSettings({
+                        streaming: {
+                            abr: {
+                                autoSwitchBitrate: {
+                                    video: true
+                                }
+                            }
+                        }
+                    });
+
+                    addLog(
+                        "AUTO MODE enabled"
+                    );
+
+                    document.getElementById(
+                        "streamMode"
+                    ).innerText =
+                        "AUTO MODE";
+
+                    return;
+            }
+
+            // tắt auto
             player.updateSettings({
                 streaming: {
                     abr: {
-                        maxBitrate: { video: maxBitrate }
+                        autoSwitchBitrate: {
+                            video: false
+                        }
                     }
                 }
             });
-            addLog(`Network simulation changed to: ${type.toUpperCase()}`);
-        }
 
+            // đổi representation
+            player.setRepresentationForTypeByIndex(
+                "video",
+                qualityIndex
+            );
+
+            addLog(
+                `Network simulation → ${type.toUpperCase()}`
+            );
+        }
         // ==========================================
         // CHART ANALYTICS CONFIGURATION (ĐÃ HOÀN THÀNH)
         // ==========================================
